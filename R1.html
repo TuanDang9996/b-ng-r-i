@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mô phỏng rơi tự do</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            border: 1px solid black;
+            background: url('sky_and_ground.png') no-repeat center;
+            background-size: cover;
+        }
+        .controls {
+            margin-bottom: 20px;
+        }
+        .controls input {
+            margin-right: 10px;
+        }
+        #velocityDisplay, #energyDisplay {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="controls">
+        <label for="heightSlider">Chiều cao ban đầu (m):</label>
+        <input type="range" id="heightSlider" min="1" max="10" value="5" oninput="adjustHeight(this.value)">
+        <span id="heightValue">5</span> m
+        <br>
+        <label for="massSlider">Khối lượng (kg):</label>
+        <input type="range" id="massSlider" min="1" max="10" value="5" oninput="adjustMass(this.value)">
+        <span id="massValue">5</span> kg
+        <br>
+        <button onclick="startSimulation()">Bắt đầu mô phỏng</button>
+    </div>
+
+    <canvas id="simulationCanvas" width="500" height="400"></canvas>
+    <div id="velocityDisplay"></div>
+    <div id="energyDisplay"></div>
+
+    <audio id="boomSound" src="boom_sound_louder.wav" preload="auto"></audio> <!-- Thêm phần tử âm thanh -->
+
+    <script>
+        const canvas = document.getElementById('simulationCanvas');
+        const ctx = canvas.getContext('2d');
+        const background = new Image();
+        background.src = 'sky_and_ground.png';
+        const boomSound = document.getElementById('boomSound'); // Tải âm thanh boom
+
+        let ball = {
+            x: canvas.width / 2,
+            y: 0,
+            radius: 20,
+            vy: 0, // vertical velocity
+            gravity: 9.81 / 60, // gravity in m/s^2, adjusted for 60 fps
+            height: 5, // initial height in meters
+            mass: 5 // mass in kg
+        };
+
+        let running = false;
+        let impactVelocity = 0;
+        let kineticEnergy = 0;
+
+        background.onload = function() {
+            ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
+        };
+
+        function adjustHeight(value) {
+            ball.height = parseFloat(value);
+            updateBallPosition();
+            document.getElementById('heightValue').innerText = value;
+        }
+
+        function adjustMass(value) {
+            ball.mass = parseFloat(value);
+            ball.radius = ball.mass * 4; // Adjust size based on mass
+            updateBallPosition();
+            document.getElementById('massValue').innerText = value;
+        }
+
+        function updateBallPosition() {
+            // Update ball's Y position based on height and radius
+            ball.y = canvas.height - (ball.height * 40) - ball.radius;
+        }
+
+        function startSimulation() {
+            ball.vy = 0;
+            running = true;
+            impactVelocity = 0;
+            kineticEnergy = 0;
+            document.getElementById('velocityDisplay').innerText = '';
+            document.getElementById('energyDisplay').innerText = '';
+            requestAnimationFrame(update);
+        }
+
+        function update() {
+            if (!running) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw the background (sky and ground)
+            ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
+
+            ball.vy += ball.gravity; // Apply gravity to velocity
+            ball.y += ball.vy; // Apply velocity to position
+
+            // Check for collision with the ground
+            if (ball.y + ball.radius >= canvas.height) {
+                ball.y = canvas.height - ball.radius; // Reposition the ball on the ground
+                running = false; // Stop the simulation
+                impactVelocity = Math.abs(ball.vy); // Capture the impact velocity
+                kineticEnergy = 0.5 * ball.mass * Math.pow(impactVelocity, 2); // Calculate kinetic energy
+                document.getElementById('velocityDisplay').innerText = `Vận tốc khi chạm: ${impactVelocity.toFixed(2)} m/s`;
+                document.getElementById('energyDisplay').innerText = `Động năng khi chạm: ${kineticEnergy.toFixed(2)} J`;
+
+                // Điều chỉnh âm lượng dựa trên chiều cao
+                const maxVolume = 1.0; // Âm lượng tối đa
+                const minVolume = 0.1; // Âm lượng tối thiểu
+                const volume = Math.min(maxVolume, Math.max(minVolume, ball.height / 10)); // Tính toán âm lượng dựa trên chiều cao
+                boomSound.volume = volume; // Đặt âm lượng cho âm thanh
+
+                boomSound.play(); // Phát âm thanh "boom"
+            }
+
+            // Draw the ball
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            ctx.fillStyle = 'blue';
+            ctx.fill();
+            ctx.closePath();
+
+            if (running) {
+                requestAnimationFrame(update);
+            }
+        }
+    </script>
+
+</body>
+</html>
